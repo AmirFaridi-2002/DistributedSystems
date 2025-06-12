@@ -1,7 +1,10 @@
 package lock
 
 import (
-	"6.5840/kvtest1"
+	"time"
+
+	"6.5840/kvsrv1/rpc"
+	kvtest "6.5840/kvtest1"
 )
 
 type Lock struct {
@@ -9,8 +12,11 @@ type Lock struct {
 	// the specific Clerk type of ck but promises that ck supports
 	// Put and Get.  The tester passes the clerk in when calling
 	// MakeLock().
-	ck kvtest.IKVClerk
+	client kvtest.IKVClerk
 	// You may add code here
+	name    string
+	token   string
+	backoff time.Duration
 }
 
 // The tester calls MakeLock() and passes in a k/v clerk; your code can
@@ -18,16 +24,86 @@ type Lock struct {
 //
 // Use l as the key to store the "lock state" (you would have to decide
 // precisely what the lock state is).
-func MakeLock(ck kvtest.IKVClerk, l string) *Lock {
-	lk := &Lock{ck: ck}
+func MakeLock(ck kvtest.IKVClerk, name string) *Lock {
 	// You may add code here
-	return lk
+	return &Lock{
+		client:  ck,
+		name:    name,
+		token:   kvtest.RandValue(8),
+		backoff: 10 * time.Millisecond,
+	}
 }
 
-func (lk *Lock) Acquire() {
+func (l *Lock) Acquire() {
 	// Your code here
+	attempt := func() bool {
+		val, ver, err := l.client.Get(l.name)
+		switch {
+		case err == rpc.ErrNoKey || (err == rpc.OK && val == ""):
+			expVer := ver
+			if err == rpc.ErrNoKey {
+				expVer = 0
+			}
+			switch putErr := l.client.Put(l.name, l.token, expVer); {
+			case putErr == rpc.OK:
+				return true
+			case putErr == rpc.ErrMaybe && l.confirmOwnership():
+				return true
+			default:
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	if attempt() {
+		return
+	}
+	ticker := time.NewTicker(l.backoff)
+	defer ticker.Stop()
+	for range ticker.C {
+		if attempt() {
+			return
+		}
+	}
 }
 
-func (lk *Lock) Release() {
+func (l *Lock) Release() {
 	// Your code here
+	attempt := func() bool {
+		val, ver, err := l.client.Get(l.name)
+		switch {
+		case err != rpc.OK || val != l.token:
+			return true
+		default:
+			switch putErr := l.client.Put(l.name, "", ver); {
+			case putErr == rpc.OK:
+				return true
+			case putErr == rpc.ErrMaybe && l.confirmRelease():
+				return true
+			default:
+				return false
+			}
+		}
+	}
+	if attempt() {
+		return
+	}
+	ticker := time.NewTicker(l.backoff)
+	defer ticker.Stop()
+	for range ticker.C {
+		if attempt() {
+			return
+		}
+	}
+}
+
+func (l *Lock) confirmOwnership() bool {
+	curr, _, err := l.client.Get(l.name)
+	return err == rpc.OK && curr == l.token
+}
+
+func (l *Lock) confirmRelease() bool {
+	curr, _, err := l.client.Get(l.name)
+	return err == rpc.OK && curr == ""
 }
