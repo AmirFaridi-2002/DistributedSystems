@@ -2,7 +2,7 @@
 
 This repository contains a series of distributed systems projects completed as part of the Distributed Systems course at the University of Tehran. The assignments are the same as [MIT 6.824: Distributed Systems](https://pdos.csail.mit.edu/6.824/).
 
-Each subdirectory contains a self-contained project designed to incrementally build a robust understanding of distributed system concepts, including consensus algorithms, key-value stores, sharded systems, and MapReduce computation.
+Each subdirectory contains a self-contained project designed to incrementally build a robust understanding of distributed system concepts, including consensus algorithms, key-value stores, and MapReduce computation.
 
 ## Project Structure
 
