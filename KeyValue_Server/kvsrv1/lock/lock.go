@@ -12,8 +12,7 @@ type Lock struct {
 	// the specific Clerk type of ck but promises that ck supports
 	// Put and Get.  The tester passes the clerk in when calling
 	// MakeLock().
-	client kvtest.IKVClerk
-	// You may add code here
+	client   kvtest.IKVClerk
 	name    string
 	token   string
 	backoff time.Duration
@@ -25,7 +24,6 @@ type Lock struct {
 // Use l as the key to store the "lock state" (you would have to decide
 // precisely what the lock state is).
 func MakeLock(ck kvtest.IKVClerk, name string) *Lock {
-	// You may add code here
 	return &Lock{
 		client:  ck,
 		name:    name,
@@ -35,7 +33,6 @@ func MakeLock(ck kvtest.IKVClerk, name string) *Lock {
 }
 
 func (l *Lock) Acquire() {
-	// Your code here
 	attempt := func() bool {
 		val, ver, err := l.client.Get(l.name)
 		switch {
@@ -69,7 +66,6 @@ func (l *Lock) Acquire() {
 }
 
 func (l *Lock) Release() {
-	// Your code here
 	attempt := func() bool {
 		val, ver, err := l.client.Get(l.name)
 		switch {
